@@ -1,10 +1,11 @@
 ## Howto Run Joystream QueryNode with docker-compose
 
 ```
+git clone https://github.com/mnaamani/query-node-standalone
+cd query-node-standalone/
 cp env.example to .env
-# customise config:
-# edit .env
-# edit docker-compose.yml
+# edit .env file to customise database volume path and RPC endpoint to fetch blocks
+
 # initialize the database
 ./init.sh
 # start services

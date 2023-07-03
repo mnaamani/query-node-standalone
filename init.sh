@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 set -e
 
+# Sourcing some configure from .env the WARTHOG_* variables to match the .env settings
+# we don't configure them in the .env because they clash with settings for hydra-indexer-gateway
+source .env
+
 # Create database directory
-mkdir -p ./db
+mkdir -p ${DATABASE_VOLUME}
 
 # Bring up db service
 docker-compose up -d db
 
 # Migrate the processor db
-# Configure the WARTHOG_* variables to match the .env settings
-# we don't configure them in the .env because they clash with settings for hydra-indexer-gateway
-source .env
-
 docker-compose run \
   -e WARTHOG_DB_HOST=db \
   -e WARTHOG_DB_DATABASE=${PROCESSOR_DB_NAME} \
