@@ -6,10 +6,10 @@ set -e
 source .env
 
 # Bring up db service
-docker-compose up -d db
+docker compose up -d db
 
 # Migrate the processor db
-docker-compose run \
+docker compose run \
   -e WARTHOG_DB_HOST=db \
   -e WARTHOG_DB_DATABASE=${PROCESSOR_DB_NAME} \
   -e WARTHOG_DB_USERNAME=${DB_USER} \
