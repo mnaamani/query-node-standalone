@@ -8,12 +8,14 @@ services:
     volumes:
       - ${CHAIN_BASE_PATH}:/chain
       - ./joy-mainnet.json:/joy-mainnet.json
-    command: "--pruning=archive --unsafe-ws-external --unsafe-rpc-external \
-      --rpc-methods Safe --rpc-cors=all --log runtime --base-path /chain \
-      --chain /joy-mainnet.json"
+    command: "
+      --pruning=archive
+      --ws-external --rpc-cors all
+      --log runtime --base-path /chain
+      --chain /joy-mainnet.json
+      "
     ports:
       - 9944:9944
-      - 9933:9933
   db:
     image: postgres:14
     container_name: db
