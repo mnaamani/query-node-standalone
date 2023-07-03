@@ -1,0 +1,111 @@
+# QueryNode Infrastructure
+version: '3.4'
+services:
+  db:
+    image: postgres:14
+    container_name: db
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:${DB_PORT}:${DB_PORT}'
+    volumes:
+      - ./db:/var/lib/postgresql/data
+    env_file:
+      # relative to working directory where docker-compose was run from
+      - .env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${INDEXER_DB_NAME}
+      PGPORT: ${DB_PORT}
+
+  graphql-server:
+    image: joystream/query-node:1.2.1
+    container_name: graphql-server
+    restart: unless-stopped
+    env_file:
+      # relative to working directory where docker-compose was run from
+      - .env
+    environment:
+      - DB_HOST=db
+      - DB_NAME=${PROCESSOR_DB_NAME}
+      - WARTHOG_APP_PORT=${GRAPHQL_SERVER_PORT}
+      - GRAPHQL_PLAYGROUND_ENDPOINT=${GRAPHQL_PLAYGROUND_ENDPOINT}
+      - GRAPHQL_PLAYGROUND_SUBSCRIPTION_ENDPOINT=${GRAPHQL_PLAYGROUND_SUBSCRIPTION_ENDPOINT}
+      - GRAPHQL_PLAYGROUND_CDN_URL=${GRAPHQL_PLAYGROUND_CDN_URL}
+    ports:
+      - "${GRAPHQL_SERVER_PORT}:${GRAPHQL_SERVER_PORT}"
+      - "127.0.0.1:${PROCESSOR_STATE_APP_PORT}:${PROCESSOR_STATE_APP_PORT}"
+    depends_on:
+      - db
+    working_dir: /joystream
+    command: ['workspace', 'query-node-root', 'query-node:start:prod']
+
+  processor:
+    image: joystream/query-node:1.2.1
+    container_name: processor
+    restart: unless-stopped
+    env_file:
+      # relative to working directory where docker-compose was run from
+      - .env
+    environment:
+      - DB_NAME=${PROCESSOR_DB_NAME}
+      - INDEXER_ENDPOINT_URL=${PROCESSOR_INDEXER_GATEWAY}
+      - TYPEORM_HOST=db
+      - TYPEORM_DATABASE=${POCESSOR_DB_NAME}
+      - BATCH_SIZE=100
+      - QUEUE_FACTOR=1
+      - QUEUE_MAX_CAP_FACTOR=4
+    depends_on:
+      - db
+    working_dir: /joystream
+    entrypoint: ['yarn']
+    command: ['workspace', 'query-node-root', 'processor:start']
+
+  indexer:
+    image: joystream/hydra-indexer:v5.0.0-alpha.1
+    container_name: indexer
+    restart: unless-stopped
+    env_file:
+      # relative to working directory where docker-compose was run from
+      - .env
+    environment:
+      - DB_NAME=${INDEXER_DB_NAME}
+      - INDEXER_WORKERS=5
+      - REDIS_URI=redis://redis:6379/0
+      - WS_PROVIDER_ENDPOINT_URI=${JOYSTREAM_NODE_WS}
+      - DB_HOST=db
+    depends_on:
+      - db
+      - redis
+    command: >
+      sh -c "yarn db:bootstrap && yarn start:prod"
+
+  hydra-indexer-gateway:
+    image: joystream/hydra-indexer-gateway:5.0.0-alpha.1
+    container_name: hydra-indexer-gateway
+    restart: unless-stopped
+    env_file:
+      # relative to working directory where docker-compose was run from
+      - .env
+    environment:
+      - WARTHOG_STARTER_DB_DATABASE=${INDEXER_DB_NAME}
+      - WARTHOG_STARTER_DB_HOST=db
+      - WARTHOG_STARTER_DB_PASSWORD=${DB_PASS}
+      - WARTHOG_STARTER_DB_PORT=${DB_PORT}
+      - WARTHOG_STARTER_DB_USERNAME=${DB_USER}
+      - WARTHOG_STARTER_REDIS_URI=redis://redis:6379/0
+      - WARTHOG_APP_PORT=${HYDRA_INDEXER_GATEWAY_PORT}
+      - PORT=${HYDRA_INDEXER_GATEWAY_PORT}
+      # - DEBUG=*
+    ports:
+      - "${HYDRA_INDEXER_GATEWAY_PORT}:${HYDRA_INDEXER_GATEWAY_PORT}"
+    depends_on:
+      - db
+      - redis
+
+  redis:
+    image: redis:6.0-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
