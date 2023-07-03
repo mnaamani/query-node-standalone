@@ -55,6 +55,7 @@ services:
       - BATCH_SIZE=100
       - QUEUE_FACTOR=1
       - QUEUE_MAX_CAP_FACTOR=4
+      - DEBUG=hydra-processor:event-queue
     depends_on:
       - db
     working_dir: /joystream
@@ -74,6 +75,7 @@ services:
       - REDIS_URI=redis://redis:6379/0
       - WS_PROVIDER_ENDPOINT_URI=${JOYSTREAM_NODE_WS}
       - DB_HOST=db
+      - DEBUG=hydra-indexer:substrate-service
     depends_on:
       - db
       - redis

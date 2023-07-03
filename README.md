@@ -1,12 +1,15 @@
 ## Howto Run Joystream QueryNode with docker-compose
 
+```
 cp env.example to .env
-edit .env
-edit docker-compose.yml to change volume directory for database as needed.
+# customise config:
+# edit .env
+# edit docker-compose.yml
+# initialize the database
 ./init.sh
-./start.sh
-
-## Caddy Setup/nginx ?
+# start services
+./up.sh
+```
 
 ### Deploy to K8s cluster
 https://kubernetes.io/docs/tasks/configure-pod-container/translate-compose-kubernetes/
