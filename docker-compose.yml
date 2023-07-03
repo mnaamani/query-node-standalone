@@ -8,12 +8,11 @@ services:
     volumes:
       - ${CHAIN_BASE_PATH}:/chain
       - ./joy-mainnet.json:/joy-mainnet.json
-    command: "
+    command: >
       --pruning=archive
       --ws-external --rpc-cors all
       --log runtime --base-path /chain
       --chain /joy-mainnet.json
-      "
     ports:
       - 9944:9944
   db:
@@ -32,6 +31,21 @@ services:
       POSTGRES_PASSWORD: ${DB_PASS}
       POSTGRES_DB: ${INDEXER_DB_NAME}
       PGPORT: ${DB_PORT}
+
+  db-init:
+    image: joystream/query-node:1.2.1
+    restart: no
+    environment:
+      - WARTHOG_DB_HOST=db
+      - WARTHOG_DB_DATABASE=${PROCESSOR_DB_NAME}
+      - WARTHOG_DB_USERNAME=${DB_USER}
+      - WARTHOG_DB_PASSWORD=${DB_PASS}
+      - WARTHOG_DB_PORT=${DB_PORT}
+    depends_on:
+      - db
+    working_dir: /joystream
+    command: >
+      workspace query-node-root db:prepare && yarn workspace query-node-root db:migrate
 
   graphql-server:
     image: joystream/query-node:1.2.1

@@ -5,9 +5,6 @@ set -e
 # we don't configure them in the .env because they clash with settings for hydra-indexer-gateway
 source .env
 
-# Create database directory
-mkdir -p ${DATABASE_VOLUME}
-
 # Bring up db service
 docker-compose up -d db
 
