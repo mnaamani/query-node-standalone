@@ -23,6 +23,6 @@ docker compose up -d processor
 docker compose up -d graphql-server
 ```
 
-A working graphql endpoint should be accessible at http://localhost:8081/
+A working graphql endpoint should be accessible at http://localhost:8081/graphql
 
 You should wait for nodes to fully sync up before using it in production.

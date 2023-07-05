@@ -1,4 +1,6 @@
 # QueryNode Infrastructure
+# TODO: drop use of env_file and configure only required environment variables
+# for each service, this makes it clearer for reference what each service needs as config.
 version: '3.4'
 services:
   joystream-node:
