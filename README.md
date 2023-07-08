@@ -8,7 +8,7 @@ Use this setup to run with no dependencies on any external services.
 ```sh
 git clone https://github.com/mnaamani/query-node-standalone && cd query-node-standalone/
 cp env.example .env
-# edit .env file to customise database volume, username,password and chain database paths
+# edit .env file to customise database volume, username, password and chain database paths.
 
 # Start all services
 docker compose up -d
@@ -29,7 +29,7 @@ There are some public indexer endpoints that can be used. (mainnet-rpc-1.joystre
 git clone https://github.com/mnaamani/query-node-standalone && cd query-node-standalone/
 cp env.example .env
 # Edit the .env file:
-# customise database volume, username,password and chain database paths
+# customise database volume, username, password
 # and set the `PROCESSOR_INDEXER_GATEWAY` value for example:
 # PROCESSOR_INDEXER_GATEWAY=https://mainnet-rpc-1.joystream.org/query-node/indexer/graphql
 
