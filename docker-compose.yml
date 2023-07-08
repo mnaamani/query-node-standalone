@@ -61,6 +61,7 @@ services:
       - "127.0.0.1:${PROCESSOR_STATE_APP_PORT}:${PROCESSOR_STATE_APP_PORT}"
     depends_on:
       - db
+      - processor
     working_dir: /joystream
     command: ['workspace', 'query-node-root', 'query-node:start:prod']
 
