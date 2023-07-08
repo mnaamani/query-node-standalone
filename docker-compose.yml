@@ -1,6 +1,4 @@
 # QueryNode Infrastructure
-# TODO: drop use of env_file and configure only required environment variables
-# for each service, this makes it clearer for reference what each service needs as config.
 version: '3.4'
 services:
   joystream-node:
@@ -13,10 +11,13 @@ services:
     command: >
       --pruning=archive
       --ws-external --rpc-cors all
-      --log runtime --base-path /chain
+      --unsafe-ws-external --unsafe-rpc-external --rpc-methods Safe
+      --base-path /chain
       --chain /joy-mainnet.json
     ports:
-      - 9944:9944
+      - '127.0.0.1:9944:9944'
+      - '127.0.0.1:9933:9933'
+
   db:
     image: postgres:14
     container_name: db
@@ -25,50 +26,36 @@ services:
       - '127.0.0.1:${DB_PORT}:${DB_PORT}'
     volumes:
       - ${DATABASE_VOLUME}:/var/lib/postgresql/data
-    env_file:
-      # relative to working directory where docker-compose was run from
-      - .env
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASS}
-      POSTGRES_DB: ${INDEXER_DB_NAME}
       PGPORT: ${DB_PORT}
-
-  db-init:
-    image: joystream/query-node:1.2.1
-    restart: no
-    env_file:
-      # relative to working directory where docker-compose was run from
-      - .env
-    environment:
-      - DB_HOST=db
-      - DB_NAME=${PROCESSOR_DB_NAME}
-      - WARTHOG_DB_HOST=db
-      - WARTHOG_DB_DATABASE=${PROCESSOR_DB_NAME}
-      - WARTHOG_DB_USERNAME=${DB_USER}
-      - WARTHOG_DB_PASSWORD=${DB_PASS}
-      - WARTHOG_APP_PORT=4002
-    depends_on:
-      - db
-    working_dir: /joystream
-    entrypoint: sh
-    command: >
-      -c "yarn workspace query-node-root db:prepare && yarn workspace query-node-root db:migrate"
 
   graphql-server:
     image: joystream/query-node:1.2.1
     container_name: graphql-server
     restart: unless-stopped
-    env_file:
-      # relative to working directory where docker-compose was run from
-      - .env
     environment:
       - DB_HOST=db
+      - DB_PASS=${DB_PASS}
+      - DB_USER=${DB_USER}
+      - DB_PORT=${DB_PORT}
       - DB_NAME=${PROCESSOR_DB_NAME}
-      - WARTHOG_APP_PORT=${GRAPHQL_SERVER_PORT}
-      - GRAPHQL_PLAYGROUND_ENDPOINT=${GRAPHQL_PLAYGROUND_ENDPOINT}
-      - GRAPHQL_PLAYGROUND_SUBSCRIPTION_ENDPOINT=${GRAPHQL_PLAYGROUND_SUBSCRIPTION_ENDPOINT}
-      - GRAPHQL_PLAYGROUND_CDN_URL=${GRAPHQL_PLAYGROUND_CDN_URL}
+      - GRAPHQL_SERVER_PORT=${GRAPHQL_SERVER_PORT}
+      - GRAPHQL_SERVER_HOST=localhost
+      # - WARTHOG_APP_PORT=${GRAPHQL_SERVER_PORT}
+      # - WARTHOG_APP_HOST=graphql-server
+      # Query node playground endpoint
+      # Leave it blank if you want endpoint to be copied from browser's URL
+      - GRAPHQL_PLAYGROUND_ENDPOINT=
+      # Query node playground subscription endpoint
+      # will be derived from GRAPHQL_PLAYGROUND_ENDPOINT when not set
+      # - GRAPHQL_PLAYGROUND_SUBSCRIPTION_ENDPOINT=
+      # URL for CDN serving QN Playground's JS/CSS files - set empty string for local file serving
+      - GRAPHQL_PLAYGROUND_CDN_URL=
+      - TYPEORM_LOGGING=error
+      - PROCESSOR_HOST=processor
+      - PROCESSOR_STATE_APP_PORT=${PROCESSOR_STATE_APP_PORT}
     ports:
       - "${GRAPHQL_SERVER_PORT}:${GRAPHQL_SERVER_PORT}"
       - "127.0.0.1:${PROCESSOR_STATE_APP_PORT}:${PROCESSOR_STATE_APP_PORT}"
@@ -81,10 +68,16 @@ services:
     image: joystream/query-node:1.2.1
     container_name: processor
     restart: unless-stopped
-    env_file:
-      # relative to working directory where docker-compose was run from
-      - .env
     environment:
+      - WARTHOG_DB_HOST=db
+      - WARTHOG_DB_DATABASE=${PROCESSOR_DB_NAME}
+      - WARTHOG_DB_USERNAME=${DB_USER}
+      - WARTHOG_DB_PASSWORD=${DB_PASS}
+      - WARTHOG_APP_PORT=4002
+      - DB_HOST=db
+      - DB_PASS=${DB_PASS}
+      - DB_USER=${DB_USER}
+      - DB_PORT=${DB_PORT}
       - DB_NAME=${PROCESSOR_DB_NAME}
       - INDEXER_ENDPOINT_URL=${PROCESSOR_INDEXER_GATEWAY}
       - TYPEORM_HOST=db
@@ -93,26 +86,38 @@ services:
       - QUEUE_FACTOR=1
       - QUEUE_MAX_CAP_FACTOR=4
       - DEBUG=hydra-processor:event-queue
+      - TYPEORM_LOGGING=error
+      # State update endpoint used by prcessor (to send state updates)
+      - STATE_UPDATE_ENDPOINT=http://graphql-server:${PROCESSOR_STATE_APP_PORT}/update-processor-state
     depends_on:
       - db
     working_dir: /joystream
-    entrypoint: ['yarn']
-    command: ['workspace', 'query-node-root', 'processor:start']
+    entrypoint: sh
+    command: >
+      -c "
+        yarn workspace query-node-root db:prepare ;
+        yarn workspace query-node-root db:migrate ;
+        yarn workspace query-node-root processor:start
+      "
 
   indexer:
     image: joystream/hydra-indexer:v5.0.0-alpha.1
     container_name: indexer
     restart: unless-stopped
-    env_file:
-      # relative to working directory where docker-compose was run from
-      - .env
     environment:
       - DB_NAME=${INDEXER_DB_NAME}
+      - DB_PASS=${DB_PASS}
+      - DB_USER=${DB_USER}
+      - DB_PORT=${DB_PORT}
       - INDEXER_WORKERS=5
       - REDIS_URI=redis://redis:6379/0
       - WS_PROVIDER_ENDPOINT_URI=${JOYSTREAM_NODE_WS}
       - DB_HOST=db
       - DEBUG=hydra-indexer:substrate-service
+      # Block height to start indexing from.
+      # Note, that if there are already some indexed events, this setting is ignored
+      - BLOCK_HEIGHT=0
+      - TYPEORM_LOGGING=error
     depends_on:
       - db
       - redis
@@ -123,9 +128,6 @@ services:
     image: joystream/hydra-indexer-gateway:5.0.0-alpha.1
     container_name: hydra-indexer-gateway
     restart: unless-stopped
-    env_file:
-      # relative to working directory where docker-compose was run from
-      - .env
     environment:
       - WARTHOG_STARTER_DB_DATABASE=${INDEXER_DB_NAME}
       - WARTHOG_STARTER_DB_HOST=db
